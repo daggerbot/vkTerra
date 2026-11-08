@@ -89,4 +89,18 @@ std::span<const char* const> Display::Vulkan::GetRequiredInstanceExtensions()
     return {extensions, count};
 }
 
+VkSurfaceKHR Display::Vulkan::CreateSurface(VkInstance instance, const VkAllocationCallbacks* allocator)
+{
+    VkSurfaceKHR surface;
+    if (!SDL_Vulkan_CreateSurface(s_displayState.window, instance, allocator, &surface)) {
+        FATAL("Failed to create Vulkan surface: {}", SDL_GetError());
+    }
+    return surface;
+}
+
+void Display::Vulkan::DestroySurface(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* allocator)
+{
+    SDL_Vulkan_DestroySurface(instance, surface, allocator);
+}
+
 #endif // GPU_VULKAN

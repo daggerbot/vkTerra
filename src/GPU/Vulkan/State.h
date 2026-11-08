@@ -13,6 +13,11 @@ namespace GPU::Vulkan {
     struct VulkanRenderState {
         VkInstance instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugUtilsMessenger = VK_NULL_HANDLE;
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+        u32 graphicsQueueFamilyIndex = 0;
+        u32 presentationQueueFamilyIndex = 0;
+        VkDevice device = VK_NULL_HANDLE;
     };
 
     extern VulkanRenderState g_vkState;

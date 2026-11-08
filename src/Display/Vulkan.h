@@ -6,10 +6,14 @@
 
 #include <span>
 
+#include <volk.h>
+
 #include <Core/Types.h>
 
 namespace Display::Vulkan {
 
     std::span<const char* const> GetRequiredInstanceExtensions(); // static|scratch
+    VkSurfaceKHR CreateSurface(VkInstance instance, const VkAllocationCallbacks* allocator);
+    void DestroySurface(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks* allocator);
 
 } // namespace Display::Vulkan

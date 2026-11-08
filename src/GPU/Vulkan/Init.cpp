@@ -411,6 +411,255 @@ namespace {
 
 //==============================================================================
 //
+// Surface Initialization
+//
+//==============================================================================
+
+namespace {
+
+    void CreateSurface()
+    {
+        if (!g_vkState.surface) {
+            LOG_DEBUG("Creating surface");
+            g_vkState.surface =
+                Display::Vulkan::CreateSurface(g_vkState.instance, GPU::Vulkan::kDefaultAllocationCallbacks);
+        }
+    }
+
+    void DestroySurface()
+    {
+        if (g_vkState.surface) {
+            LOG_DEBUG("Destroying surface");
+            Display::Vulkan::DestroySurface(g_vkState.instance, g_vkState.surface,
+                                            GPU::Vulkan::kDefaultAllocationCallbacks);
+            g_vkState.surface = VK_NULL_HANDLE;
+        }
+    }
+
+} // namespace
+
+//==============================================================================
+//
+// Physical Device Selection
+//
+//==============================================================================
+
+namespace {
+
+    struct PhysicalDeviceInfo {
+        VkPhysicalDevice handle;
+        VkPhysicalDeviceProperties properties;
+        std::span<VkQueueFamilyProperties> queueFamilies;
+        i32 graphicsQueueFamilyIndex = -1;
+        i32 presentationQueueFamilyIndex = -1;
+    };
+
+    std::span<VkPhysicalDevice> GetAvailablePhysicalDevices()
+    {
+        u32 count = 0;
+        EXPECT_VK(vkEnumeratePhysicalDevices(g_vkState.instance, &count, nullptr));
+        if (!count) {
+            return {};
+        }
+        auto devices = Memory::ScratchNewArrayUninitialized<VkPhysicalDevice>(count);
+        EXPECT_VK(vkEnumeratePhysicalDevices(g_vkState.instance, &count, devices.data()));
+        return {devices.data(), count};
+    }
+
+    void ChooseQueueFamilies(PhysicalDeviceInfo& info)
+    {
+        i32 bestGraphicsIndex = -1;
+        i32 bestPresentationIndex = -1;
+
+        for (size_t i = 0; i < info.queueFamilies.size(); i++) {
+            bool supportsGraphics = info.queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+            VkBool32 supportsPresentation = 0;
+            EXPECT_VK(vkGetPhysicalDeviceSurfaceSupportKHR(info.handle, static_cast<u32>(i), g_vkState.surface,
+                                                           &supportsPresentation));
+
+            if (supportsGraphics && supportsPresentation) {
+                // Prefer a queue family that supports all required capabilities.
+                bestGraphicsIndex = static_cast<i32>(i);
+                bestPresentationIndex = static_cast<i32>(i);
+                break;
+            }
+            if (supportsGraphics && bestGraphicsIndex == -1) {
+                bestGraphicsIndex = static_cast<i32>(i);
+            }
+            if (supportsPresentation && bestPresentationIndex == -1) {
+                bestPresentationIndex = static_cast<i32>(i);
+            }
+        }
+
+        info.graphicsQueueFamilyIndex = bestGraphicsIndex;
+        info.presentationQueueFamilyIndex = bestPresentationIndex;
+    }
+
+    PhysicalDeviceInfo GetPhysicalDeviceInfo(VkPhysicalDevice device)
+    {
+        PhysicalDeviceInfo info{};
+        info.handle = device;
+        vkGetPhysicalDeviceProperties(device, &info.properties);
+
+        u32 queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+        auto queueFamilies = Memory::ScratchNewArrayUninitialized<VkQueueFamilyProperties>(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+        info.queueFamilies = {queueFamilies.data(), queueFamilyCount};
+
+        ChooseQueueFamilies(info);
+
+        return info;
+    }
+
+    bool IsPhysicalDeviceSuitable(const PhysicalDeviceInfo& info)
+    {
+        if (VK_API_VERSION_VARIANT(info.properties.apiVersion) != 0
+            || VK_API_VERSION_MAJOR(info.properties.apiVersion) != VK_API_VERSION_MAJOR(GPU::Vulkan::kMinApiVersion)
+            || VK_API_VERSION_MINOR(info.properties.apiVersion) < VK_API_VERSION_MINOR(GPU::Vulkan::kMinApiVersion))
+        {
+            return false;
+        }
+
+        if (info.graphicsQueueFamilyIndex == -1 || info.presentationQueueFamilyIndex == -1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    int GetPhysicalDeviceTypeScore(VkPhysicalDeviceType type)
+    {
+        switch (type) {
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                return 3;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                return 2;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
+    bool IsPhysicalDeviceBetter(const PhysicalDeviceInfo& testInfo, const PhysicalDeviceInfo& controlInfo)
+    {
+        // Compare by device type.
+        int testScore = GetPhysicalDeviceTypeScore(testInfo.properties.deviceType);
+        int controlScore = GetPhysicalDeviceTypeScore(controlInfo.properties.deviceType);
+        if (testScore > controlScore) {
+            return true;
+        } else if (testScore < controlScore) {
+            return false;
+        }
+
+        // Prefer a unified queue family for graphics and presentation.
+        testScore = (testInfo.graphicsQueueFamilyIndex == testInfo.presentationQueueFamilyIndex) ? 1 : 0;
+        controlScore = (controlInfo.graphicsQueueFamilyIndex == controlInfo.presentationQueueFamilyIndex) ? 1 : 0;
+        if (testScore > controlScore) {
+            return true;
+        } else if (testScore < controlScore) {
+            return false;
+        }
+
+        return false;
+    }
+
+    void ChoosePhysicalDevice()
+    {
+        auto allDevices = GetAvailablePhysicalDevices();
+        bool suitableDeviceFound = false;
+        PhysicalDeviceInfo bestDeviceInfo{};
+
+        for (size_t i = 0; i < allDevices.size(); i++) {
+            VkPhysicalDevice device = allDevices[i];
+            auto info = GetPhysicalDeviceInfo(device);
+
+            LOG_DEBUG("Physical device {}: {}", i, info.properties.deviceName);
+
+            if (IsPhysicalDeviceSuitable(info)) {
+                if (suitableDeviceFound) {
+                    if (IsPhysicalDeviceBetter(info, bestDeviceInfo)) {
+                        bestDeviceInfo = info;
+                    }
+                } else {
+                    bestDeviceInfo = info;
+                    suitableDeviceFound = true;
+                }
+            }
+        }
+
+        if (!suitableDeviceFound) {
+            FATAL("No suitable Vulkan physical device found");
+        }
+
+        LOG_INFO("Using Vulkan physical device: {}", bestDeviceInfo.properties.deviceName);
+        LOG_DEBUG("Unified graphics and presentation: {}",
+                  bestDeviceInfo.graphicsQueueFamilyIndex == bestDeviceInfo.presentationQueueFamilyIndex);
+
+        g_vkState.physicalDevice = bestDeviceInfo.handle;
+        g_vkState.graphicsQueueFamilyIndex = static_cast<u32>(bestDeviceInfo.graphicsQueueFamilyIndex);
+        g_vkState.presentationQueueFamilyIndex = static_cast<u32>(bestDeviceInfo.presentationQueueFamilyIndex);
+    }
+
+} // namespace
+
+//==============================================================================
+//
+// Logical Device Initialization
+//
+//==============================================================================
+
+namespace {
+
+    void CreateDevice()
+    {
+        static const float kQueuePriority = 1.0f;
+
+        if (g_vkState.device) {
+            return;
+        }
+
+        LOG_DEBUG("Creating logical device");
+
+        VkDeviceQueueCreateInfo queueCreateInfo[2]{};
+        u32 queueFamilyCount = 1;
+
+        queueCreateInfo[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo[0].queueFamilyIndex = g_vkState.graphicsQueueFamilyIndex;
+        queueCreateInfo[0].queueCount = 1;
+        queueCreateInfo[0].pQueuePriorities = &kQueuePriority;
+
+        if (g_vkState.graphicsQueueFamilyIndex != g_vkState.presentationQueueFamilyIndex) {
+            queueCreateInfo[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo[1].queueFamilyIndex = g_vkState.presentationQueueFamilyIndex;
+            queueCreateInfo[1].queueCount = 1;
+            queueCreateInfo[1].pQueuePriorities = &kQueuePriority;
+            queueFamilyCount = 2;
+        }
+
+        VkDeviceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        createInfo.queueCreateInfoCount = queueFamilyCount;
+        createInfo.pQueueCreateInfos = queueCreateInfo;
+
+        EXPECT_VK(vkCreateDevice(g_vkState.physicalDevice, &createInfo, GPU::Vulkan::kDefaultAllocationCallbacks,
+                                 &g_vkState.device));
+    }
+
+    void DestroyDevice()
+    {
+        if (g_vkState.device) {
+            LOG_DEBUG("Destroying logical device");
+            vkDestroyDevice(g_vkState.device, GPU::Vulkan::kDefaultAllocationCallbacks);
+            g_vkState.device = VK_NULL_HANDLE;
+        }
+    }
+
+} // namespace
+
+//==============================================================================
+//
 // Public API
 //
 //==============================================================================
@@ -418,16 +667,24 @@ namespace {
 void GPU::InitGPU()
 {
     LOG_INFO("Initializing Vulkan renderer");
-    volkInitialize();
+    EXPECT_VK(volkInitialize());
     CheckDebugEnvironment();
     CreateInstance();
     volkLoadInstanceOnly(g_vkState.instance);
     CreateDebugUtilsMessenger();
+    CreateSurface();
+    ChoosePhysicalDevice();
+    CreateDevice();
+    volkLoadDevice(g_vkState.device);
 }
 
 void GPU::ShutDownGPU()
 {
     LOG_INFO("Shutting down Vulkan renderer");
+    DestroyDevice();
+    g_vkState.physicalDevice = VK_NULL_HANDLE;
+    DestroySurface();
     DestroyDebugUtilsMessenger();
     DestroyInstance();
+    volkFinalize();
 }
