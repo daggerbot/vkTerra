@@ -1,0 +1,181 @@
+{
+  "version": 10,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 31
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "VENV_DIR": "${sourceDir}/build/venv"
+      }
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "minsizerel",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel"
+      }
+    },
+    {
+      "name": "release",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "gcc",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_C_FLAGS": "-pipe -fdiagnostics-color=always",
+        "CMAKE_C_FLAGS_DEBUG": "-Og -g",
+        "CMAKE_C_FLAGS_MINSIZEREL": "-Oz -DDISABLE_SOURCE_LOCATION=1 -DNDEBUG -fdata-sections -ffunction-sections -flto",
+        "CMAKE_C_FLAGS_RELEASE": "-O2 -DNDEBUG -flto",
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g -DNDEBUG -flto",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CXX_FLAGS": "-pipe -fdiagnostics-color=always -fno-exceptions -fno-rtti",
+        "CMAKE_CXX_FLAGS_DEBUG": "-Og -g",
+        "CMAKE_CXX_FLAGS_MINSIZEREL": "-Oz -DDISABLE_SOURCE_LOCATION=1 -DNDEBUG -fdata-sections -ffunction-sections -flto",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O2 -DNDEBUG -flto",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -DNDEBUG -flto",
+        "CMAKE_EXE_LINKER_FLAGS": "",
+        "CMAKE_EXE_LINKER_FLAGS_DEBUG": "",
+        "CMAKE_EXE_LINKER_FLAGS_MINSIZEREL": "-s -flto=auto -Wl,--gc-sections",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-s -flto=auto",
+        "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO": "-flto=auto",
+        "CMAKE_SHARED_LINKER_FLAGS": "",
+        "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "",
+        "CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL": "-s -flto=auto -Wl,--gc-sections",
+        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-s -flto=auto",
+        "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO": "-flto=auto",
+        "CMAKE_STATIC_LINKER_FLAGS": "",
+        "CMAKE_STATIC_LINKER_FLAGS_DEBUG": "",
+        "CMAKE_STATIC_LINKER_FLAGS_MINSIZEREL": "",
+        "CMAKE_STATIC_LINKER_FLAGS_RELEASE": "",
+        "CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO": ""
+      }
+    },
+    {
+      "name": "gcc-debug",
+      "inherits": [
+        "gcc",
+        "debug"
+      ]
+    },
+    {
+      "name": "gcc-minsizerel",
+      "inherits": [
+        "gcc",
+        "minsizerel"
+      ]
+    },
+    {
+      "name": "gcc-release",
+      "inherits": [
+        "gcc",
+        "release"
+      ]
+    },
+    {
+      "name": "gcc-relwithdebinfo",
+      "inherits": [
+        "gcc",
+        "relwithdebinfo"
+      ]
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "inherits": "gcc",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_C_FLAGS": "-pipe -fcolor-diagnostics",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_FLAGS": "-pipe -fcolor-diagnostics -fno-exceptions -fno-rtti"
+      }
+    },
+    {
+      "name": "clang-debug",
+      "inherits": [
+        "clang",
+        "debug"
+      ]
+    },
+    {
+      "name": "clang-minsizerel",
+      "inherits": [
+        "clang",
+        "minsizerel"
+      ]
+    },
+    {
+      "name": "clang-release",
+      "inherits": [
+        "clang",
+        "release"
+      ]
+    },
+    {
+      "name": "clang-relwithdebinfo",
+      "inherits": [
+        "clang",
+        "relwithdebinfo"
+      ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "gcc-debug",
+      "configurePreset": "gcc-debug"
+    },
+    {
+      "name": "gcc-minsizerel",
+      "configurePreset": "gcc-minsizerel"
+    },
+    {
+      "name": "gcc-release",
+      "configurePreset": "gcc-release"
+    },
+    {
+      "name": "gcc-relwithdebinfo",
+      "configurePreset": "gcc-relwithdebinfo"
+    },
+    {
+      "name": "clang-debug",
+      "configurePreset": "clang-debug"
+    },
+    {
+      "name": "clang-minsizerel",
+      "configurePreset": "clang-minsizerel"
+    },
+    {
+      "name": "clang-release",
+      "configurePreset": "clang-release"
+    },
+    {
+      "name": "clang-relwithdebinfo",
+      "configurePreset": "clang-relwithdebinfo"
+    }
+  ]
+}

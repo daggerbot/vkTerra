@@ -1,0 +1,35 @@
+---
+
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+
+AccessModifierOffset: -4
+AlignEscapedNewlines: DontAlign
+AlignTrailingComments: { Kind: Never }
+AllowShortFunctionsOnASingleLine: InlineOnly
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+BreakTemplateDeclarations: Leave
+ColumnLimit: 120
+ContinuationIndentWidth: 4
+IncludeIsMainRegex: '^$'
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+IndentRequiresClause: false
+IndentWidth: 4
+NamespaceIndentation: All
+PPIndentWidth: 1
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+BraceWrapping:
+  AfterControlStatement: MultiLine
+  AfterFunction: true
+
+AttributeMacros:
+  - ALWAYS_INLINE
+  - NO_INLINE
+  - RESTRICT
+
+---

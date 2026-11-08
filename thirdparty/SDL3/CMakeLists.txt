@@ -1,0 +1,116 @@
+# Copyright (c) 2026, vkTerra Contributors
+# SPDX-License-Identifier: MPL-2.0
+# See LICENSE-MPL-2.0.txt for more information.
+
+set(SDL_VERSION 3.4.18)
+set(SDL_URL "https://github.com/libsdl-org/SDL/archive/refs/tags/release-${SDL_VERSION}.tar.gz")
+set(SDL_URL_HASH SHA256=c4b08b950bd29d83caae0ab8d884298d27046a9d30700fb42841c50992665c90)
+
+set(PREFIX "${CMAKE_CURRENT_BINARY_DIR}/_install")
+set(INCLUDE_DIR "${PREFIX}/include")
+set(LIBRARY_NAME "SDL3")
+set(LIBRARY_FILENAME "${CMAKE_SHARED_LIBRARY_PREFIX}${LIBRARY_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+set(LIBRARY "${PREFIX}/lib/${LIBRARY_FILENAME}")
+set(BINDIR_LIBRARY "${BINDIR}/${LIBRARY_FILENAME}")
+
+# Must exist at config time.
+file(MAKE_DIRECTORY "${INCLUDE_DIR}")
+
+ExternalProject_Add(ExternalProject-SDL3
+    URL "${SDL_URL}"
+    URL_HASH "${SDL_URL_HASH}"
+    CMAKE_ARGS
+        ${COMMON_CMAKE_ARGS}
+        "-DCMAKE_INSTALL_PREFIX=${PREFIX}"
+        -DSDL_ALSA=${LINUX}
+        -DSDL_ALSA_SHARED=${LINUX}
+        -DSDL_ASAN=OFF
+        -DSDL_ASSEMBLY=ON
+        -DSDL_AUDIO=ON
+        -DSDL_CAMERA=OFF
+        -DSDL_CCACHE=OFF
+        -DSDL_CLANG_TIDY=OFF
+        -DSDL_DBUS=${LINUX}
+        -DSDL_DEPS_SHARED=ON
+        -DSDL_DIALOG=OFF
+        -DSDL_DISKAUDIO=OFF
+        -DSDL_DUMMYAUDIO=OFF
+        -DSDL_DUMMYCAMERA=OFF
+        -DSDL_DUMMYVIDEO=OFF
+        -DSDL_EXAMPLES=OFF
+        -DSDL_FRIBIDI=OFF
+        -DSDL_GPU=OFF
+        -DSDL_HAPTIC=OFF
+        -DSDL_HIDAPI=ON
+        -DSDL_HIDAPI_JOYSTICK=ON
+        -DSDL_HIDAPI_LIBUSB=${LINUX}
+        -DSDL_HIDAPI_LIBUSB_SHARED=${LINUX}
+        -DSDL_IBUS=OFF
+        -DSDL_INSTALL=ON
+        -DSDL_INSTALL_CPACK=OFF
+        -DSDL_INSTALL_DOCS=OFF
+        -DSDL_INSTALL_TESTS=OFF
+        -DSDL_JACK=OFF
+        -DSDL_JOYSTICK=ON
+        -DSDL_KMSDRM=${LINUX}
+        -DSDL_KMSDRM_SHARED=${LINUX}
+        -DSDL_LIBICONV=OFF
+        -DSDL_LIBTHAI=OFF
+        -DSDL_LIBUDEV=${LINUX}
+        -DSDL_LIBURING=OFF
+        -DSDL_OFFSCREEN=OFF
+        -DSDL_OPENGL=ON
+        -DSDL_OPENGLES=OFF
+        -DSDL_OPENVR=OFF
+        -DSDL_OSS=OFF
+        -DSDL_PIPEWIRE=${LINUX}
+        -DSDL_PIPEWIRE_SHARED=${LINUX}
+        -DSDL_POWER=OFF
+        -DSDL_PULSEAUDIO=${LINUX}
+        -DSDL_PULSEAUDIO_SHARED=${LINUX}
+        -DSDL_RENDER=OFF
+        -DSDL_RPATH=OFF
+        -DSDL_SENSOR=OFF
+        -DSDL_SHARED=ON
+        -DSDL_SNDIO=OFF
+        -DSDL_STATIC=OFF
+        -DSDL_TESTS=OFF
+        -DSDL_TRAY=OFF
+        -DSDL_VIDEO=ON
+        -DSDL_VIRTUAL_JOYSTICK=OFF
+        -DSDL_VULKAN=ON
+        -DSDL_WAYLAND=${LINUX}
+        -DSDL_WAYLAND_LIBDECOR=${LINUX}
+        -DSDL_WAYLAND_LIBDECOR_SHARED=${LINUX}
+        -DSDL_WAYLAND_SHARED=${LINUX}
+        -DSDL_WERROR=OFF
+        -DSDL_X11=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_SHARED=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XCURSOR=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XDBE=OFF
+        -DSDL_X11_XFIXES=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XINPUT=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XRANDR=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XSCRNSAVER=$<OR:${LINUX},${BSD}>
+        -DSDL_X11_XSHAPE=OFF
+        -DSDL_X11_XSYNC=OFF
+        -DSDL_X11_XTEST=OFF
+    INSTALL_BYPRODUCTS
+        "${LIBRARY}"
+)
+
+add_library(SDL3 SHARED IMPORTED GLOBAL)
+add_dependencies(SDL3 ExternalProject-SDL3)
+set_target_properties(SDL3 PROPERTIES
+    IMPORTED_LOCATION "${LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${INCLUDE_DIR}"
+)
+
+# Install SDL3 shared library to BINDIR.
+add_custom_command(
+    OUTPUT "${BINDIR_LIBRARY}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${LIBRARY}" "${BINDIR_LIBRARY}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${BINDIR_LIBRARY}"
+    DEPENDS ExternalProject-SDL3)
+add_custom_target(SDL3-dll ALL DEPENDS "${BINDIR_LIBRARY}")
+set(DLL_TARGETS ${DLL_TARGETS} SDL3-dll PARENT_SCOPE)
