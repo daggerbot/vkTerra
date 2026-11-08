@@ -29,3 +29,18 @@ using OSChar = wchar_t;
 # define OSSTR(s) s
 using OSChar = char;
 #endif
+
+inline constexpr unsigned long long operator""_KiB(unsigned long long size)
+{
+    return size * 1024;
+}
+
+inline constexpr unsigned long long operator""_MiB(unsigned long long size)
+{
+    return size * 1024_KiB;
+}
+
+inline constexpr unsigned long long operator""_GiB(unsigned long long size)
+{
+    return size * 1024_MiB;
+}

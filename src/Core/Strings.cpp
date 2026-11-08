@@ -7,6 +7,22 @@
 #include "Ascii.h"
 #include "Strings.h"
 
+size_t Strings::strlcpy(char* RESTRICT dst, const char* RESTRICT src, size_t dstSize)
+{
+    size_t i = 0;
+    if (dstSize) {
+        while (i < dstSize - 1 && src[i]) {
+            dst[i] = src[i];
+            i++;
+        }
+        dst[i] = 0;
+    }
+    while (src[i]) {
+        i++;
+    }
+    return i;
+}
+
 std::optional<bool> Strings::ParseBoolPermissive(OSStringView str)
 {
     static const eastl::string_view kTrueStrings[] = {"1", "enable", "enabled", "on", "t", "true", "y", "yes"};

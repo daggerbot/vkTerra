@@ -10,6 +10,7 @@
 
 add_library(vkTerraCommon INTERFACE)
 target_sources(vkTerraCommon INTERFACE
+    Core/Error.cpp
     Core/Formatting.cpp
     Core/Logging.cpp
     Core/Memory.cpp
@@ -51,7 +52,11 @@ target_link_libraries(vkTerraClient INTERFACE
 #
 #===============================================================================
 
-add_executable(vkTerra WIN32)
+add_executable(vkTerra WIN32
+    GPU/Vulkan/Init.cpp
+    GPU/Vulkan/State.cpp
+    GPU/Vulkan/Utils.cpp
+)
 target_compile_definitions(vkTerra PRIVATE GPU_VULKAN=1)
 target_link_libraries(vkTerra PRIVATE
     vkTerraClient

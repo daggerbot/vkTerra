@@ -6,6 +6,7 @@
 
 #include <concepts>
 #include <optional>
+#include <span>
 
 #include <EASTL/string.h>
 #include <EASTL/string_view.h>
@@ -14,6 +15,8 @@
 #include "Formatting/Base.h"
 #include "Formatting/IntFormatters.h"
 #include "Formatting/MiscFormatters.h"
+#include "Formatting/StringFormatters.h"
+#include "Memory.h"
 
 namespace Formatting {
 
@@ -95,6 +98,18 @@ namespace Formatting {
         char* m_buffer = nullptr;
         size_t m_bufferSize = 0;
         size_t m_count = 0;
+    };
+
+    /// Format writer that writes to an `eastl::string`.
+    class StringWriter final : public Writer {
+    public:
+        constexpr explicit StringWriter(eastl::string& str) : m_string{str} {}
+
+    protected:
+        void DoWrite(const char* chars, size_t count) override final;
+
+    private:
+        eastl::string& m_string;
     };
 
     namespace Internal {
@@ -371,6 +386,12 @@ namespace Formatting {
                 return ArgTypeInfo{ArgTypeId::kStringView, {}};
             } else if constexpr (std::is_same_v<Value, eastl::string>) {
                 return ArgTypeInfo{ArgTypeId::kString, {}};
+            } else if (HasFormatter<Value>) {
+                return ArgTypeInfo{ArgTypeId::kCustom,
+                                   {.customFormatFunc = [](PackedArg arg, eastl::string_view spec, Writer& writer) {
+                                       return Internal::DoFormatArg<const Value&>(
+                                           *reinterpret_cast<const Value*>(arg.cp), spec, writer);
+                                   }}};
             }
         }
 
@@ -493,7 +514,7 @@ namespace Formatting {
     constexpr bool ValidateFormatString(eastl::string_view fmt)
     {
         NullWriter writer{};
-        Internal::ValidatingArgFormatter<Args...> argFormatter{};
+        Internal::ValidatingArgFormatter<std::remove_cvref_t<Args>...> argFormatter{};
         return Internal::ParseFormatString(fmt, ParseMode::kStrict, writer, argFormatter) == ParseResult::kSuccess;
     }
 
@@ -640,6 +661,55 @@ namespace Formatting {
         FixedBufferWriter writer{outString.data, kLength};
         Formatting::FormatToChecked<kFmt>(writer, kArgs...);
         return outString;
+    }
+
+    /// Formats to a string with type-erased arguments.
+    ParseResult FormatToStringV(eastl::string& outString, eastl::string_view fmt, ParseMode mode, FormatArgs args);
+
+    /// Formats to a string with the provided arguments.
+    template <Formattable... Args>
+    ParseResult FormatToString(eastl::string& outString, eastl::string_view fmt, ParseMode mode, Args&&... args)
+    {
+        return Formatting::FormatToStringV(outString, fmt, mode,
+                                           Formatting::MakeFormatArgs(std::forward<Args>(args)...));
+    }
+
+    /// Formats to a string with the provided arguments, validating the format string at compile time.
+    template <StringLiteral kFmt, Formattable... Args>
+    void FormatToStringChecked(eastl::string& outString, Args&&... args)
+    requires(Formatting::ValidateFormatString<Args...>(kFmt.GetUnterminatedView()))
+    {
+        Formatting::FormatToString(outString, kFmt.GetUnterminatedView(), ParseMode::kStrict,
+                                   std::forward<Args>(args)...);
+    }
+
+    /// Formats a string with the provided arguments, validating the format string at compile time.
+    template <StringLiteral kFmt, Formattable... Args>
+    eastl::string FormatStringChecked(Args&&... args)
+    requires(Formatting::ValidateFormatString<Args...>(kFmt.GetUnterminatedView()))
+    {
+        eastl::string outString;
+        Formatting::FormatToStringChecked<kFmt>(outString, std::forward<Args>(args)...);
+        return outString;
+    }
+
+    /// Formats a scratch string with type-erased arguments.
+    std::optional<eastl::string_view> FormatScratchStringV(eastl::string_view fmt, ParseMode mode, FormatArgs args);
+
+    /// Formats a scratch string with the provided arguments.
+    template <Formattable... Args>
+    std::optional<eastl::string_view> FormatScratchString(eastl::string_view fmt, ParseMode mode, Args&&... args)
+    {
+        return Formatting::FormatScratchStringV(fmt, mode, Formatting::MakeFormatArgs(std::forward<Args>(args)...));
+    }
+
+    /// Formats a scratch string with the provided arguments, validating the format string at compile time.
+    template <StringLiteral kFmt, Formattable... Args>
+    eastl::string_view FormatScratchStringChecked(Args&&... args)
+    requires(Formatting::ValidateFormatString<Args...>(kFmt.GetUnterminatedView()))
+    {
+        return Formatting::FormatScratchString(kFmt.GetUnterminatedView(), ParseMode::kStrict,
+                                               std::forward<Args>(args)...);
     }
 
 } // namespace Formatting

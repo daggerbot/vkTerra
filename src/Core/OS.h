@@ -4,10 +4,15 @@
 
 #pragma once
 
+#include <EASTL/string_view.h>
+
 #include "Types.h"
 
 namespace OS {
 
     OSChar* getenv(const OSChar* name);
+
+    eastl::string_view GetCurrentThreadDebugName();
+    void SetCurrentThreadDebugName(eastl::string_view name);
 
 } // namespace OS

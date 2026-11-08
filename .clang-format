@@ -13,6 +13,7 @@ BreakBeforeBraces: Custom
 BreakTemplateDeclarations: Leave
 ColumnLimit: 120
 ContinuationIndentWidth: 4
+FixNamespaceComments: true
 IncludeIsMainRegex: '^$'
 IndentCaseLabels: true
 IndentPPDirectives: AfterHash

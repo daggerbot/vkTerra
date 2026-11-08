@@ -11,6 +11,8 @@
 /// Text formatting utilities.
 namespace Formatting {
 
+    inline constexpr eastl::string_view kNullFallbackString = "<null>";
+
     /// Abstract class for writing formatted text to an output destination.
     class Writer {
     public:

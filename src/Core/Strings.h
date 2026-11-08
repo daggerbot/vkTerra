@@ -16,6 +16,8 @@ using OSStringView = eastl::basic_string_view<OSChar>;
 
 namespace Strings {
 
+    size_t strlcpy(char* RESTRICT dst, const char* RESTRICT src, size_t dstSize);
+
     template <Core::IntegralNonBool CharT>
     constexpr eastl::basic_string_view<CharT> ToStringView(const char* str) noexcept
     {

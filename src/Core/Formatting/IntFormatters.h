@@ -24,6 +24,7 @@ namespace Formatting {
         static inline constexpr u8 kMinRadix = 2;
         static inline constexpr u8 kMaxRadix = 36;
         static inline constexpr u32 kMaxWidth = 1024;
+        static inline constexpr char kDefaultSeparator = '_';
 
         Alignment alignment = Alignment::kRight;
         DigitCase digitCase = DigitCase::kLower;
@@ -123,7 +124,7 @@ namespace Formatting {
             // {:H} to use the default separator (').
             // {:H:<separator>} to use a custom separator.
             if (pos < end && *pos == 'H') {
-                separator = '\'';
+                separator = kDefaultSeparator;
                 pos++;
                 if (end - pos >= 2 && pos[0] == ':') {
                     separator = pos[1];

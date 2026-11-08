@@ -10,7 +10,10 @@
 #include <SDL3/SDL_timer.h>
 
 #include <Core/Logging.h>
+#include <Core/Memory.h>
+#include <Core/OS.h>
 #include <Display/Display.h>
+#include <GPU/GPU.h>
 
 #include "Main.h"
 
@@ -21,6 +24,7 @@ namespace {
     };
 
     ClientState s_clientState{};
+    char s_mainThreadScratchBuffer[64_KiB];
 
 } // namespace
 
@@ -51,6 +55,7 @@ namespace {
     void MainLoop()
     {
         while (!s_clientState.quitRequested) {
+            Memory::ScratchReset();
             Display::PollEvents();
             if (s_clientState.quitRequested) {
                 break;
@@ -73,17 +78,22 @@ namespace {
 
     int ClientMain(int, OSChar**)
     {
+        OS::SetCurrentThreadDebugName("main");
         Logging::InitLogger();
+        Memory::InitThreadScratchBuffer(s_mainThreadScratchBuffer, sizeof(s_mainThreadScratchBuffer));
 
         LOG_INFO("Initializing...");
         Display::InitDisplay();
+        GPU::InitGPU();
 
         LOG_INFO("Game started!");
         MainLoop();
 
         LOG_INFO("Shutting down...");
+        GPU::ShutDownGPU();
         Display::ShutDownDisplay();
         SDL_Quit();
+        Memory::ScratchReset();
         Logging::ShutDownLogger();
 
         return 0;

@@ -11,6 +11,11 @@
 
 #include "Display.h"
 
+#if GPU_VULKAN
+# include "Vulkan.h"
+# include <SDL3/SDL_vulkan.h>
+#endif
+
 namespace {
 
     struct DisplayState {
@@ -20,6 +25,12 @@ namespace {
     DisplayState s_displayState{};
 
 } // namespace
+
+//==============================================================================
+//
+// Common Display Functions
+//
+//==============================================================================
 
 void Display::InitDisplay()
 {
@@ -62,3 +73,20 @@ void Display::PollEvents()
         }
     }
 }
+
+//==============================================================================
+//
+// Vulkan Support Functions
+//
+//==============================================================================
+
+#if GPU_VULKAN
+
+std::span<const char* const> Display::Vulkan::GetRequiredInstanceExtensions()
+{
+    u32 count = 0;
+    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&count);
+    return {extensions, count};
+}
+
+#endif // GPU_VULKAN
