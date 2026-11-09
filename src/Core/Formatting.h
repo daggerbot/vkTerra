@@ -288,6 +288,10 @@ namespace Formatting {
             kCharArray,
             kStringView,
             kString,
+            kWideCharPtr,
+            kWideCharArray,
+            kWideStringView,
+            kWideString,
             kCustom,
         };
 
@@ -345,6 +349,14 @@ namespace Formatting {
                                  && std::is_same_v<std::remove_cv_t<std::remove_extent_t<Value>>, char>)
             {
                 return PackedArg{.cp = arg};
+            } else if constexpr (std::is_pointer_v<Value>
+                                 && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<Value>>, wchar_t>)
+            {
+                return PackedArg{.cp = arg};
+            } else if constexpr (std::is_array_v<Value>
+                                 && std::is_same_v<std::remove_cv_t<std::remove_extent_t<Value>>, wchar_t>)
+            {
+                return PackedArg{.cp = arg};
             } else {
                 return PackedArg{.cp = &arg};
             }
@@ -386,6 +398,18 @@ namespace Formatting {
                 return ArgTypeInfo{ArgTypeId::kStringView, {}};
             } else if constexpr (std::is_same_v<Value, eastl::string>) {
                 return ArgTypeInfo{ArgTypeId::kString, {}};
+            } else if constexpr (std::is_pointer_v<Value>
+                                 && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<Value>>, wchar_t>)
+            {
+                return ArgTypeInfo{ArgTypeId::kWideCharPtr, {}};
+            } else if constexpr (std::is_array_v<Value>
+                                 && std::is_same_v<std::remove_cv_t<std::remove_extent_t<Value>>, wchar_t>)
+            {
+                return ArgTypeInfo{ArgTypeId::kWideCharArray, {.extent = std::extent_v<Value>}};
+            } else if constexpr (std::is_same_v<Value, eastl::wstring_view>) {
+                return ArgTypeInfo{ArgTypeId::kWideStringView, {}};
+            } else if constexpr (std::is_same_v<Value, eastl::wstring>) {
+                return ArgTypeInfo{ArgTypeId::kWideString, {}};
             } else if (HasFormatter<Value>) {
                 return ArgTypeInfo{ArgTypeId::kCustom,
                                    {.customFormatFunc = [](PackedArg arg, eastl::string_view spec, Writer& writer) {
@@ -426,6 +450,19 @@ namespace Formatting {
                 case ArgTypeId::kString:
                     return Internal::DoFormatArg<eastl::string_view>(*static_cast<const eastl::string*>(arg.cp), spec,
                                                                      writer);
+                case ArgTypeId::kWideCharPtr:
+                    return Internal::DoFormatArg<const wchar_t*>(static_cast<const wchar_t*>(arg.cp), spec, writer);
+                case ArgTypeId::kWideCharArray: {
+                    const wchar_t* ptr = static_cast<const wchar_t*>(arg.cp);
+                    size_t length = Formatter<eastl::wstring_view>::GetLengthBounded(ptr, typeInfo.data.extent);
+                    return Internal::DoFormatArg<eastl::wstring_view>(eastl::wstring_view{ptr, length}, spec, writer);
+                }
+                case ArgTypeId::kWideStringView:
+                    return Internal::DoFormatArg<eastl::wstring_view>(*static_cast<const eastl::wstring_view*>(arg.cp),
+                                                                      spec, writer);
+                case ArgTypeId::kWideString:
+                    return Internal::DoFormatArg<eastl::wstring_view>(*static_cast<const eastl::wstring*>(arg.cp), spec,
+                                                                      writer);
                 case ArgTypeId::kCustom:
                     return typeInfo.data.customFormatFunc(arg, spec, writer);
                 default:

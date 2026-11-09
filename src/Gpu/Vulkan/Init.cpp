@@ -99,6 +99,10 @@ namespace Formatting {
         void Format(const ::FormatWrapper<std::span<const char* const>>& wrapper, Writer& writer) const
         {
             bool first = true;
+            if (wrapper.value.empty()) {
+                writer.Write("<none>");
+                return;
+            }
             for (const char* str : wrapper.value) {
                 if (!first) {
                     writer.Write(' ');
@@ -116,6 +120,10 @@ namespace Formatting {
         void Format(const ::FormatWrapper<std::span<const VkExtensionProperties>>& wrapper, Writer& writer) const
         {
             bool first = true;
+            if (wrapper.value.empty()) {
+                writer.Write("<none>");
+                return;
+            }
             for (const auto& ext : wrapper.value) {
                 if (!first) {
                     writer.Write(' ');
@@ -133,6 +141,10 @@ namespace Formatting {
         void Format(const ::FormatWrapper<std::span<const VkLayerProperties>>& wrapper, Writer& writer) const
         {
             bool first = true;
+            if (wrapper.value.empty()) {
+                writer.Write("<none>");
+                return;
+            }
             for (const auto& layer : wrapper.value) {
                 if (!first) {
                     writer.Write(' ');

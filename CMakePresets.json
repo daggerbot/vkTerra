@@ -142,6 +142,45 @@
         "clang",
         "relwithdebinfo"
       ]
+    },
+    {
+      "name": "mingw64",
+      "hidden": true,
+      "inherits": "gcc",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "x86_64-w64-mingw32-gcc",
+        "CMAKE_CXX_COMPILER": "x86_64-w64-mingw32-g++",
+        "CMAKE_SYSTEM_NAME": "Windows",
+        "CMAKE_SYSTEM_PROCESSOR": "x86_64"
+      }
+    },
+    {
+      "name": "mingw64-debug",
+      "inherits": [
+        "mingw64",
+        "debug"
+      ]
+    },
+    {
+      "name": "mingw64-minsizerel",
+      "inherits": [
+        "mingw64",
+        "minsizerel"
+      ]
+    },
+    {
+      "name": "mingw64-release",
+      "inherits": [
+        "mingw64",
+        "release"
+      ]
+    },
+    {
+      "name": "mingw64-relwithdebinfo",
+      "inherits": [
+        "mingw64",
+        "relwithdebinfo"
+      ]
     }
   ],
   "buildPresets": [
@@ -176,6 +215,22 @@
     {
       "name": "clang-relwithdebinfo",
       "configurePreset": "clang-relwithdebinfo"
+    },
+    {
+      "name": "mingw64-debug",
+      "configurePreset": "mingw64-debug"
+    },
+    {
+      "name": "mingw64-minsizerel",
+      "configurePreset": "mingw64-minsizerel"
+    },
+    {
+      "name": "mingw64-release",
+      "configurePreset": "mingw64-release"
+    },
+    {
+      "name": "mingw64-relwithdebinfo",
+      "configurePreset": "mingw64-relwithdebinfo"
     }
   ]
 }

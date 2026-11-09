@@ -185,12 +185,6 @@ namespace Core {
     template <ErrorCodeEnum T>
     inline constexpr const ErrorDomain ErrorDomain::kDomain = ErrorDomain::MakeForType<T>();
 
-    inline constexpr const ErrorDomain& kStatusDomain = ErrorDomain::ForType<Status>();
-    inline constexpr const ErrorDomain& kErrnoDomain = ErrorDomain::ForType<Errno>();
-#ifdef _WIN32
-    inline constexpr const ErrorDomain& kWinErrorDomain = ErrorDomain::ForType<WinErrorCode>();
-#endif
-
     /// Represents a numeric error code associated with a specific error domain.
     class ErrorCode {
     public:
@@ -289,3 +283,13 @@ namespace Formatting {
     };
 
 } // namespace Formatting
+
+namespace Core {
+
+    inline constexpr const ErrorDomain& kStatusDomain = ErrorDomain::ForType<Status>();
+    inline constexpr const ErrorDomain& kErrnoDomain = ErrorDomain::ForType<Errno>();
+#ifdef _WIN32
+    inline constexpr const ErrorDomain& kWinErrorDomain = ErrorDomain::ForType<WinErrorCode>();
+#endif
+
+} // namespace Core

@@ -9,10 +9,10 @@
 
 #include <EASTL/string_view.h>
 
-#include "../../Ascii.h"
-#include "../../Logging.h"
-#include "../../LoggingUtils.h"
-#include "../../ScopeExit.h"
+#include <Core/Ascii.h>
+#include <Core/Logging.h>
+#include <Core/LoggingUtils.h>
+#include <Core/ScopeExit.h>
 
 namespace {
 
@@ -75,6 +75,10 @@ namespace {
     }
 
 } // namespace
+
+void Logging::ShowConsoleWindow()
+{
+}
 
 void Logging::Internal::InitPlatformLogger()
 {

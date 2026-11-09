@@ -54,4 +54,43 @@ namespace Formatting {
     template <>
     struct Formatter<eastl::string> : Formatter<eastl::string_view> {};
 
+    /// Wide string view formatter.
+    template <>
+    struct Formatter<eastl::wstring_view> : Formatter<eastl::string_view> {
+        void Format(eastl::wstring_view value, Writer& writer) const;
+
+        static constexpr size_t GetLengthBounded(const wchar_t* str, size_t maxLength)
+        {
+            size_t length = 0;
+            while (length < maxLength && str[length]) {
+                length++;
+            }
+            return length;
+        }
+
+        void FormatCharArray(const wchar_t* value, size_t extent, Writer& writer) const
+        {
+            Format(eastl::wstring_view{value, GetLengthBounded(value, extent)}, writer);
+        }
+    };
+
+    /// Wide C string formatter.
+    template <>
+    struct Formatter<const wchar_t*> : Formatter<eastl::wstring_view> {
+        void Format(const wchar_t* value, Writer& writer) const;
+    };
+
+    /// Wide character array formatter.
+    template <size_t N>
+    struct Formatter<wchar_t[N]> : Formatter<eastl::wstring_view> {
+        void Format(wchar_t (&value)[N], Writer& writer) const
+        {
+            Formatter<eastl::wstring_view>::Format(eastl::wstring_view{value, GetLengthBounded(value, N)}, writer);
+        }
+    };
+
+    /// Wide string formatter.
+    template <>
+    struct Formatter<eastl::wstring> : Formatter<eastl::wstring_view> {};
+
 } // namespace Formatting

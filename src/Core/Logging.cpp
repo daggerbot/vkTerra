@@ -117,7 +117,7 @@ void Logging::ShutDownLogger()
 
 void Logging::SetLogLevel(Level level)
 {
-    s_loggerState.currentLevel = level;
+    s_loggerState.currentLevel = Math::Min(level, Level::kTrace);
 }
 
 bool Logging::WouldLog(Level level)

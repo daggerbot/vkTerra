@@ -5,6 +5,7 @@
 #include "Formatting.h"
 #include "Logging.h"
 #include "Memory.h"
+#include "Unicode.h"
 
 //==============================================================================
 //
@@ -19,7 +20,7 @@ void Formatting::StringWriter::DoWrite(const char* chars, size_t count)
 
 //==============================================================================
 //
-// Misc Formatting Functions
+// Main Formatting API
 //
 //==============================================================================
 
@@ -49,6 +50,27 @@ std::optional<eastl::string_view> Formatting::FormatScratchStringV(eastl::string
     ASSERT(writer.GetCount() == length);
     buffer[length] = 0; // Null-terminate the buffer
     return eastl::string_view{buffer, length};
+}
+
+//==============================================================================
+//
+// String Formatters
+//
+//==============================================================================
+
+void Formatting::Formatter<eastl::wstring_view>::Format(eastl::wstring_view str, Writer& writer) const
+{
+    Unicode::CallWithWideToUtf8(
+        str, [&](eastl::string_view utf8Str) { Formatter<eastl::string_view>::Format(utf8Str, writer); });
+}
+
+void Formatting::Formatter<const wchar_t*>::Format(const wchar_t* str, Writer& writer) const
+{
+    if (str) {
+        Formatter<eastl::wstring_view>::Format(eastl::wstring_view{str}, writer);
+    } else {
+        Formatter<eastl::string_view>::Format(kNullFallbackString, writer);
+    }
 }
 
 //==============================================================================

@@ -7,6 +7,7 @@
 
 #include "Error.h"
 #include "Formatting.h"
+#include "Unicode.h"
 
 //==============================================================================
 //
@@ -71,9 +72,12 @@ void Formatting::Formatter<Core::Errno>::Format(Core::Errno code, Writer& writer
     if (::strerror_r(static_cast<int>(code), buffer, sizeof(buffer)) == 0) {
         writer.Write(buffer);
     }
+#elif defined(_WIN32)
+    wchar_t buffer[256];
+    if (::_wcserror_s(buffer, std::size(buffer), static_cast<int>(code)) == 0) {
+        Unicode::CallWithWideToUtf8(eastl::wstring_view{buffer}, [&](eastl::string_view msg) { writer.Write(msg); });
+    }
 #endif
-
-    // TODO: Windows (_wcserror_s -> WideCharToMultiByte)
 
     Formatting::FormatToChecked<"errno {}">(writer, static_cast<int>(code));
 }

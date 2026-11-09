@@ -16,6 +16,7 @@ target_sources(vkTerraCommon INTERFACE
     Core/Memory.cpp
     Core/OS.cpp
     Core/Strings.cpp
+    Core/Unicode.cpp
 )
 target_include_directories(vkTerraCommon INTERFACE .)
 target_link_libraries(vkTerraCommon INTERFACE
@@ -26,6 +27,10 @@ target_link_libraries(vkTerraCommon INTERFACE
 if(UNIX)
     target_sources(vkTerraCommon INTERFACE
         Core/OS/Posix/Logging.cpp
+    )
+elseif(WIN32)
+    target_sources(vkTerraCommon INTERFACE
+        Core/OS/Windows/Logging.cpp
     )
 endif()
 
@@ -63,3 +68,7 @@ target_link_libraries(vkTerra PRIVATE
     vkTerraClient
     volk
 )
+
+if(MINGW)
+    target_link_options(vkTerra PRIVATE -municode)
+endif()

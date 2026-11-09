@@ -312,12 +312,12 @@ void operator delete[](void* block) noexcept
     Memory::HeapFree(block);
 }
 
-void operator delete(void* block, std::align_val_t)
+void operator delete(void* block, std::align_val_t) noexcept
 {
     Memory::HeapFreeAligned(block);
 }
 
-void operator delete[](void* block, std::align_val_t)
+void operator delete[](void* block, std::align_val_t) noexcept
 {
     Memory::HeapFreeAligned(block);
 }

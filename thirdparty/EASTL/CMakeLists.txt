@@ -19,7 +19,9 @@ file(MAKE_DIRECTORY "${INCLUDE_DIR}")
 ExternalProject_Add(ExternalProject-EASTL
     URL "${EASTL_URL}"
     URL_HASH "${EASTL_URL_HASH}"
-    PATCH_COMMAND "${VENV_PYTHON}" -m patch_ng "${CMAKE_CURRENT_SOURCE_DIR}/no-fetch-content.patch"
+    PATCH_COMMAND "${VENV_PYTHON}" "${TOOLDIR}/multipatch.py"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/no-fetch-content.patch"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/windows-h-case.patch"
     CMAKE_ARGS
         ${COMMON_CMAKE_ARGS}
         "-DCMAKE_INSTALL_PREFIX=${PREFIX}"

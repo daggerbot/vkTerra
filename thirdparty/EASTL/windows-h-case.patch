@@ -1,0 +1,72 @@
+diff -ru a/include/EASTL/chrono.h b/include/EASTL/chrono.h
+--- a/include/EASTL/chrono.h	2026-11-08 19:09:27.312557612 -0800
++++ b/include/EASTL/chrono.h	2026-11-08 19:11:08.642079360 -0800
+@@ -36,7 +36,7 @@
+ 	#undef NOMINMAX
+ 	#define NOMINMAX
+ 
+-	#include <Windows.h>
++	#include <windows.h>
+ 
+ 	#ifdef min
+ 		#undef min
+diff -ru a/source/assert.cpp b/source/assert.cpp
+--- a/source/assert.cpp	2026-11-08 19:09:27.328557855 -0800
++++ b/source/assert.cpp	2026-11-08 19:11:09.090085998 -0800
+@@ -17,7 +17,7 @@
+ 	#ifndef WIN32_LEAN_AND_MEAN
+ 		#define WIN32_LEAN_AND_MEAN
+ 	#endif
+-	#include <Windows.h>
++	#include <windows.h>
+ 	EA_RESTORE_ALL_VC_WARNINGS();
+ #elif defined(EA_PLATFORM_ANDROID)
+ 	#include <android/log.h>
+diff -ru a/source/thread_support.cpp b/source/thread_support.cpp
+--- a/source/thread_support.cpp	2026-11-08 19:09:27.328557855 -0800
++++ b/source/thread_support.cpp	2026-11-08 19:11:09.090085998 -0800
+@@ -13,7 +13,7 @@
+ 	#ifndef WIN32_LEAN_AND_MEAN
+ 		#define WIN32_LEAN_AND_MEAN
+ 	#endif
+-	#include <Windows.h>
++	#include <windows.h>
+ 	EA_RESTORE_ALL_VC_WARNINGS();
+ #endif
+ 
+diff -ru a/test/source/EASTLTest.cpp b/test/source/EASTLTest.cpp
+--- a/test/source/EASTLTest.cpp	2026-11-08 19:09:27.328557855 -0800
++++ b/test/source/EASTLTest.cpp	2026-11-08 19:11:08.994084576 -0800
+@@ -22,7 +22,7 @@
+ 	#include <wchar.h>
+ #endif
+ #if defined(EA_PLATFORM_WINDOWS)
+-	#include <Windows.h>
++	#include <windows.h>
+ #elif defined(EA_PLATFORM_ANDROID)
+ 	#include <android/log.h>
+ #endif
+diff -ru a/test/source/GetTypeName.h b/test/source/GetTypeName.h
+--- a/test/source/GetTypeName.h	2026-11-08 19:09:27.328557855 -0800
++++ b/test/source/GetTypeName.h	2026-11-08 19:11:09.050085405 -0800
+@@ -33,7 +33,7 @@
+ 	#include <cxxabi.h>
+ #elif EA_WINAPI_FAMILY_PARTITION(EA_WINAPI_PARTITION_DESKTOP)
+ 	EA_DISABLE_ALL_VC_WARNINGS();
+-	#include <Windows.h>
++	#include <windows.h>
+ 	#include <DbgHelp.h>
+ 	#pragma comment(lib, "dbghelp.lib")
+ 	EA_RESTORE_ALL_VC_WARNINGS();
+diff -ru a/test/source/TestSmartPtr.cpp b/test/source/TestSmartPtr.cpp
+--- a/test/source/TestSmartPtr.cpp	2026-11-08 19:09:27.332557917 -0800
++++ b/test/source/TestSmartPtr.cpp	2026-11-08 19:11:09.034085168 -0800
+@@ -30,7 +30,7 @@
+ 	#ifndef WIN32_LEAN_AND_MEAN
+ 		#define WIN32_LEAN_AND_MEAN
+ 	#endif
+-	#include <Windows.h>
++	#include <windows.h>
+ #elif defined(EA_PLATFORM_ANDROID)
+ 	#include <android/log.h>
+ #endif
