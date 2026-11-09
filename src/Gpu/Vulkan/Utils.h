@@ -17,7 +17,7 @@
         ::VkResult _result_ = (EXPR); \
         if (_result_ != ::VK_SUCCESS) { \
             static const ::Logging::SourceLocation _location_ = {__FILE__, __func__, __LINE__}; \
-            ::GPU::Vulkan::ExpectFailure(&_location_, #EXPR, _result_); \
+            ::Gpu::Vulkan::ExpectFailure(&_location_, #EXPR, _result_); \
         } \
     } while (0)
 
@@ -41,8 +41,8 @@ namespace Core {
 
 } // namespace Core
 
-namespace GPU::Vulkan {
+namespace Gpu::Vulkan {
 
     [[noreturn]] void ExpectFailure(const Logging::SourceLocation* location, const char* expr, VkResult result);
 
-} // namespace GPU::Vulkan
+} // namespace Gpu::Vulkan

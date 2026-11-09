@@ -708,8 +708,8 @@ namespace Formatting {
     eastl::string_view FormatScratchStringChecked(Args&&... args)
     requires(Formatting::ValidateFormatString<Args...>(kFmt.GetUnterminatedView()))
     {
-        return Formatting::FormatScratchString(kFmt.GetUnterminatedView(), ParseMode::kStrict,
-                                               std::forward<Args>(args)...);
+        return *Formatting::FormatScratchString(kFmt.GetUnterminatedView(), ParseMode::kStrict,
+                                                std::forward<Args>(args)...);
     }
 
 } // namespace Formatting

@@ -2,13 +2,6 @@
 // SPDX-License-Identifier: MPL-2.0
 // See LICENSE-MPL-2.0.txt for more information.
 
-#pragma once
+#include "GpuSettings.h"
 
-#include <Core/Types.h>
-
-namespace GPU {
-
-    void InitGPU();
-    void ShutDownGPU();
-
-} // namespace GPU
+Gpu::GpuSettings Gpu::g_gpuSettings{};

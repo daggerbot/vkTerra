@@ -26,7 +26,7 @@ namespace {
         .flags = Logging::FormatMessageFlags::kEndLine,
     };
 
-    bool IsColorTTY()
+    bool IsColorTty()
     {
         static const eastl::string_view kKnownColorTerms[] = {
             // If you use a fairly common terminal that is not listed here, feel free to add it.
@@ -70,7 +70,7 @@ namespace {
         } else if (forceColor && forceColor[0]) {
             return true;
         } else {
-            return IsColorTTY();
+            return IsColorTty();
         }
     }
 

@@ -32,7 +32,7 @@ namespace {
         return reinterpret_cast<T*>(AlignUp(reinterpret_cast<uintptr_t>(ptr), alignment));
     }
 
-    constexpr bool IsPowerOf2(size_t value)
+    [[maybe_unused]] constexpr bool IsPowerOf2(size_t value)
     {
         return value && (value & (value - 1)) == 0;
     }
@@ -49,7 +49,7 @@ void* Memory::HeapAlloc(size_t size)
 {
     void* block = TryHeapAlloc(size);
     if (!block) {
-        Logging::Log(Logging::Level::kFatal, nullptr, "Heap allocation failed: size={:H}", size);
+        Logging::Log(Logging::Level::kFatal, nullptr, "Heap allocation failed: size={}", size);
         ::abort();
     }
     return block;
@@ -59,7 +59,7 @@ void* Memory::HeapAllocAligned(size_t size, size_t alignment)
 {
     void* block = TryHeapAllocAligned(size, alignment);
     if (!block) {
-        Logging::Log(Logging::Level::kFatal, nullptr, "Aligned heap allocation failed: size={:H}, alignment={}", size,
+        Logging::Log(Logging::Level::kFatal, nullptr, "Aligned heap allocation failed: size={}, alignment={}", size,
                      alignment);
         ::abort();
     }
@@ -120,7 +120,7 @@ namespace {
     {
         if (sizeRequest > SIZE_MAX - sizeof(ScratchChunk)) {
             Logging::Log(Logging::Level::kFatal, nullptr,
-                         "Scratch chunk allocation size overflow: sizeRequest={:H} alignmentRequest={}", sizeRequest,
+                         "Scratch chunk allocation size overflow: sizeRequest={} alignmentRequest={}", sizeRequest,
                          alignmentRequest);
             ::abort();
         }
@@ -129,12 +129,12 @@ namespace {
         size_t grossSize = Math::Max(sizeof(ScratchChunk) + sizeRequest, kDefaultGrossSize);
         void* block = Memory::TryHeapAllocAligned(grossSize, alignment);
         if (!block) {
-            Logging::Log(Logging::Level::kFatal, nullptr,
-                         "Scratch chunk allocation failed: grossSize={:H}, alignment={}", grossSize, alignment);
+            Logging::Log(Logging::Level::kFatal, nullptr, "Scratch chunk allocation failed: grossSize={}, alignment={}",
+                         grossSize, alignment);
             ::abort();
         }
 
-        LOG_DEBUG("Allocated scratch overflow chunk: thread={} addr={} size={:H} alignment={}",
+        LOG_DEBUG("Allocated scratch overflow chunk: thread={} addr={} size={} alignment={}",
                   OS::GetCurrentThreadDebugName(), block, grossSize, alignment);
 
         ScratchChunk* chunk = static_cast<ScratchChunk*>(block);
@@ -156,8 +156,9 @@ namespace {
 
     void ScratchChunk::Free(ScratchChunk* chunk)
     {
-        LOG_DEBUG("Freeing scratch overflow chunk: thread={} addr={}", OS::GetCurrentThreadDebugName(),
-                  static_cast<void*>(chunk));
+        LOG_DEBUG("Freeing scratch overflow chunk: thread={} addr={} size={}", OS::GetCurrentThreadDebugName(),
+                  static_cast<void*>(chunk), static_cast<size_t>(chunk->end - reinterpret_cast<char*>(chunk)));
+
         Memory::HeapFreeAligned(chunk);
     }
 
@@ -178,8 +179,7 @@ void Memory::InitThreadScratchBuffer(void* buffer, size_t size)
     ASSERT(size > sizeof(ScratchChunk));
     ASSERT(tls_scratchHead == nullptr);
 
-    LOG_DEBUG("Initializing scratch buffer: thread={} addr={} size={:H}", OS::GetCurrentThreadDebugName(), buffer,
-              size);
+    LOG_DEBUG("Initializing scratch buffer: thread={} addr={} size={}", OS::GetCurrentThreadDebugName(), buffer, size);
 
     tls_scratchHead = static_cast<ScratchChunk*>(buffer);
     *tls_scratchHead = {
@@ -199,6 +199,10 @@ void* Memory::ScratchAllocAligned(size_t size, size_t alignment)
     ASSERT(size > 0);
     ASSERT(IsPowerOf2(alignment));
     ASSERT(tls_scratchHead != nullptr);
+
+    if (!size) {
+        return nullptr;
+    }
 
     // Find an existing chunk with enough free space.
     for (ScratchChunk* chunk = tls_scratchHead; chunk; chunk = chunk->next) {
@@ -223,7 +227,7 @@ void* Memory::ScratchAllocArray(size_t count, size_t size)
 void* Memory::ScratchAllocArrayAligned(size_t count, size_t size, size_t alignment)
 {
     if (size && count > SIZE_MAX / size) {
-        Logging::Log(Logging::Level::kFatal, nullptr, "Scratch memory block size overflow: count={:H} size={:H}", count,
+        Logging::Log(Logging::Level::kFatal, nullptr, "Scratch memory block size overflow: count={} size={}", count,
                      size);
     }
     return ScratchAllocAligned(count * size, alignment);

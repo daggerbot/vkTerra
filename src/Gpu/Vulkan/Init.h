@@ -8,9 +8,9 @@
 
 #include <Core/Types.h>
 
-namespace GPU::Vulkan {
+namespace Gpu::Vulkan {
 
     inline constexpr const VkAllocationCallbacks* kDefaultAllocationCallbacks = nullptr;
     inline constexpr u32 kMinApiVersion = VK_API_VERSION_1_0;
 
-} // namespace GPU::Vulkan
+} // namespace Gpu::Vulkan

@@ -13,7 +13,7 @@
 #include <Core/Memory.h>
 #include <Core/OS.h>
 #include <Display/Display.h>
-#include <GPU/GPU.h>
+#include <Gpu/Gpu.h>
 
 #include "Main.h"
 
@@ -84,13 +84,13 @@ namespace {
 
         LOG_INFO("Initializing...");
         Display::InitDisplay();
-        GPU::InitGPU();
+        Gpu::InitGpu();
 
         LOG_INFO("Game started!");
         MainLoop();
 
         LOG_INFO("Shutting down...");
-        GPU::ShutDownGPU();
+        Gpu::ShutDownGpu();
         Display::ShutDownDisplay();
         SDL_Quit();
         Memory::ScratchReset();

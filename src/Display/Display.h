@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include <Core/Types.h>
+#include <Math/Vector.h>
 
 namespace Display {
 
     void InitDisplay();
     void ShutDownDisplay();
     void PollEvents();
+    Vec2u GetSurfaceSizePixels();
 
 } // namespace Display

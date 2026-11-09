@@ -4,4 +4,4 @@
 
 #include "State.h"
 
-GPU::Vulkan::VulkanRenderState GPU::Vulkan::g_vkState{};
+Gpu::Vulkan::VulkanRenderState Gpu::Vulkan::g_vkState{};

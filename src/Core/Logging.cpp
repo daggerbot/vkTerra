@@ -30,10 +30,8 @@ namespace {
 # else
     constexpr Logging::Level kDefaultLogLevel = Logging::Level::kInfo;
 # endif
-    constexpr Logging::Level kMaxLogLevel = Logging::Level::kInfo;
 #else
     constexpr Logging::Level kDefaultLogLevel = Logging::Level::kDebug;
-    constexpr Logging::Level kMaxLogLevel = Logging::Level::kTrace;
 #endif
 
     struct LoggerState {
@@ -119,7 +117,7 @@ void Logging::ShutDownLogger()
 
 void Logging::SetLogLevel(Level level)
 {
-    s_loggerState.currentLevel = Math::Min(level, kMaxLogLevel);
+    s_loggerState.currentLevel = level;
 }
 
 bool Logging::WouldLog(Level level)

@@ -10,18 +10,21 @@
 
 #include <Core/Formatting.h>
 #include <Core/Logging.h>
+#include <Core/Math.h>
 #include <Core/Memory.h>
 #include <Core/OS.h>
 #include <Core/Strings.h>
+#include <Display/Display.h>
 #include <Display/Vulkan.h>
 #include <GameDefs.h>
 
-#include "../GPU.h"
+#include "../Gpu.h"
+#include "../GpuSettings.h"
 #include "Init.h"
 #include "State.h"
 #include "Utils.h"
 
-using GPU::Vulkan::g_vkState;
+using Gpu::Vulkan::g_vkState;
 
 namespace {
 
@@ -249,7 +252,7 @@ namespace {
 
         auto createInfo = MakeDebugUtilsMessengerCreateInfo();
         VkResult result = vkCreateDebugUtilsMessengerEXT(
-            g_vkState.instance, &createInfo, GPU::Vulkan::kDefaultAllocationCallbacks, &g_vkState.debugUtilsMessenger);
+            g_vkState.instance, &createInfo, Gpu::Vulkan::kDefaultAllocationCallbacks, &g_vkState.debugUtilsMessenger);
 
         if (result != VK_SUCCESS) {
             LOG_ERROR("Failed to create Vulkan debug utils messenger: {}", result);
@@ -261,7 +264,7 @@ namespace {
         if (g_vkState.debugUtilsMessenger) {
             LOG_DEBUG("Destroying debug utils messenger");
             vkDestroyDebugUtilsMessengerEXT(g_vkState.instance, g_vkState.debugUtilsMessenger,
-                                            GPU::Vulkan::kDefaultAllocationCallbacks);
+                                            Gpu::Vulkan::kDefaultAllocationCallbacks);
             g_vkState.debugUtilsMessenger = VK_NULL_HANDLE;
         }
     }
@@ -342,16 +345,13 @@ namespace {
 
     void CreateInstance()
     {
-        if (g_vkState.instance != VK_NULL_HANDLE) {
-            return;
-        }
-
+        ASSERT(g_vkState.instance == VK_NULL_HANDLE);
         LOG_DEBUG("Creating Vulkan instance");
 
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = GAME_TITLE;
-        appInfo.apiVersion = GPU::Vulkan::kMinApiVersion;
+        appInfo.apiVersion = Gpu::Vulkan::kMinApiVersion;
 
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -395,14 +395,15 @@ namespace {
         }
 
         // Finally create the instance.
-        EXPECT_VK(vkCreateInstance(&createInfo, GPU::Vulkan::kDefaultAllocationCallbacks, &g_vkState.instance));
+        EXPECT_VK(vkCreateInstance(&createInfo, Gpu::Vulkan::kDefaultAllocationCallbacks, &g_vkState.instance));
+        volkLoadInstanceOnly(g_vkState.instance);
     }
 
     void DestroyInstance()
     {
         if (g_vkState.instance != VK_NULL_HANDLE) {
             LOG_DEBUG("Destroying Vulkan instance");
-            vkDestroyInstance(g_vkState.instance, GPU::Vulkan::kDefaultAllocationCallbacks);
+            vkDestroyInstance(g_vkState.instance, Gpu::Vulkan::kDefaultAllocationCallbacks);
             g_vkState.instance = VK_NULL_HANDLE;
         }
     }
@@ -419,11 +420,10 @@ namespace {
 
     void CreateSurface()
     {
-        if (!g_vkState.surface) {
-            LOG_DEBUG("Creating surface");
-            g_vkState.surface =
-                Display::Vulkan::CreateSurface(g_vkState.instance, GPU::Vulkan::kDefaultAllocationCallbacks);
-        }
+        ASSERT(g_vkState.surface == VK_NULL_HANDLE);
+        LOG_DEBUG("Creating surface");
+        g_vkState.surface =
+            Display::Vulkan::CreateSurface(g_vkState.instance, Gpu::Vulkan::kDefaultAllocationCallbacks);
     }
 
     void DestroySurface()
@@ -431,7 +431,7 @@ namespace {
         if (g_vkState.surface) {
             LOG_DEBUG("Destroying surface");
             Display::Vulkan::DestroySurface(g_vkState.instance, g_vkState.surface,
-                                            GPU::Vulkan::kDefaultAllocationCallbacks);
+                                            Gpu::Vulkan::kDefaultAllocationCallbacks);
             g_vkState.surface = VK_NULL_HANDLE;
         }
     }
@@ -446,12 +446,17 @@ namespace {
 
 namespace {
 
+    const char* const kRequiredDeviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
     struct PhysicalDeviceInfo {
         VkPhysicalDevice handle;
         VkPhysicalDeviceProperties properties;
         std::span<VkQueueFamilyProperties> queueFamilies;
         i32 graphicsQueueFamilyIndex = -1;
         i32 presentationQueueFamilyIndex = -1;
+        VkFormat surfaceImageFormat = VK_FORMAT_UNDEFINED;
+        std::span<VkExtensionProperties> availableExtensions;
+        eastl::string_view reasonNotSuitable{};
     };
 
     std::span<VkPhysicalDevice> GetAvailablePhysicalDevices()
@@ -495,6 +500,61 @@ namespace {
         info.presentationQueueFamilyIndex = bestPresentationIndex;
     }
 
+    std::span<VkSurfaceFormatKHR> GetAvailableSurfaceFormats(VkPhysicalDevice device)
+    {
+        u32 count = 0;
+        EXPECT_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, g_vkState.surface, &count, nullptr));
+        if (!count) {
+            return {};
+        }
+        auto formats = Memory::ScratchNewArrayUninitialized<VkSurfaceFormatKHR>(count);
+        EXPECT_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, g_vkState.surface, &count, formats.data()));
+        return {formats.data(), count};
+    }
+
+    int GetSurfaceFormatScore(VkFormat format)
+    {
+        switch (format) {
+            case VK_FORMAT_R8G8B8A8_SRGB:
+            case VK_FORMAT_B8G8R8A8_SRGB:
+                return 2;
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_UNORM:
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
+    VkFormat ChooseBestSurfaceFormat(VkPhysicalDevice device)
+    {
+        auto supportedFormats = GetAvailableSurfaceFormats(device);
+        VkFormat bestFormat = VK_FORMAT_UNDEFINED;
+        int bestScore = 0;
+
+        for (const auto& format : supportedFormats) {
+            int score = GetSurfaceFormatScore(format.format);
+            if (score > bestScore) {
+                bestScore = score;
+                bestFormat = format.format;
+            }
+        }
+
+        return bestFormat;
+    }
+
+    std::span<VkExtensionProperties> GetAvailableDeviceExtensions(VkPhysicalDevice device, const char* layerName)
+    {
+        u32 count = 0;
+        EXPECT_VK(vkEnumerateDeviceExtensionProperties(device, layerName, &count, nullptr));
+        if (!count) {
+            return {};
+        }
+        auto extensions = Memory::ScratchNewArrayUninitialized<VkExtensionProperties>(count);
+        EXPECT_VK(vkEnumerateDeviceExtensionProperties(device, layerName, &count, extensions.data()));
+        return {extensions.data(), count};
+    }
+
     PhysicalDeviceInfo GetPhysicalDeviceInfo(VkPhysicalDevice device)
     {
         PhysicalDeviceInfo info{};
@@ -508,21 +568,39 @@ namespace {
         info.queueFamilies = {queueFamilies.data(), queueFamilyCount};
 
         ChooseQueueFamilies(info);
+        info.surfaceImageFormat = ChooseBestSurfaceFormat(device);
+        info.availableExtensions = GetAvailableDeviceExtensions(device, nullptr);
 
         return info;
     }
 
-    bool IsPhysicalDeviceSuitable(const PhysicalDeviceInfo& info)
+    bool IsPhysicalDeviceSuitable(PhysicalDeviceInfo& info)
     {
         if (VK_API_VERSION_VARIANT(info.properties.apiVersion) != 0
-            || VK_API_VERSION_MAJOR(info.properties.apiVersion) != VK_API_VERSION_MAJOR(GPU::Vulkan::kMinApiVersion)
-            || VK_API_VERSION_MINOR(info.properties.apiVersion) < VK_API_VERSION_MINOR(GPU::Vulkan::kMinApiVersion))
+            || VK_API_VERSION_MAJOR(info.properties.apiVersion) != VK_API_VERSION_MAJOR(Gpu::Vulkan::kMinApiVersion)
+            || VK_API_VERSION_MINOR(info.properties.apiVersion) < VK_API_VERSION_MINOR(Gpu::Vulkan::kMinApiVersion))
         {
+            info.reasonNotSuitable = Formatting::FormatScratchStringChecked<"Unsupported API version: {}:{}.{}.{}">(
+                VK_API_VERSION_VARIANT(info.properties.apiVersion), VK_API_VERSION_MAJOR(info.properties.apiVersion),
+                VK_API_VERSION_MINOR(info.properties.apiVersion), VK_API_VERSION_PATCH(info.properties.apiVersion));
+            return false;
+        } else if (info.graphicsQueueFamilyIndex < 0) {
+            info.reasonNotSuitable = "No suitable graphics queue family found";
+            return false;
+        } else if (info.presentationQueueFamilyIndex < 0) {
+            info.reasonNotSuitable = "No suitable presentation queue family found";
+            return false;
+        } else if (info.surfaceImageFormat == VK_FORMAT_UNDEFINED) {
+            info.reasonNotSuitable = "No suitable surface image format found";
             return false;
         }
 
-        if (info.graphicsQueueFamilyIndex == -1 || info.presentationQueueFamilyIndex == -1) {
-            return false;
+        for (const char* requiredExtension : kRequiredDeviceExtensions) {
+            if (!CheckExtension(info.availableExtensions, requiredExtension)) {
+                info.reasonNotSuitable =
+                    Formatting::FormatScratchStringChecked<"Missing required device extension: {}">(requiredExtension);
+                return false;
+            }
         }
 
         return true;
@@ -553,6 +631,15 @@ namespace {
             return false;
         }
 
+        // Compare by surface format.
+        testScore = GetSurfaceFormatScore(testInfo.surfaceImageFormat);
+        controlScore = GetSurfaceFormatScore(controlInfo.surfaceImageFormat);
+        if (testScore > controlScore) {
+            return true;
+        } else if (testScore < controlScore) {
+            return false;
+        }
+
         // Prefer a unified queue family for graphics and presentation.
         testScore = (testInfo.graphicsQueueFamilyIndex == testInfo.presentationQueueFamilyIndex) ? 1 : 0;
         controlScore = (controlInfo.graphicsQueueFamilyIndex == controlInfo.presentationQueueFamilyIndex) ? 1 : 0;
@@ -568,6 +655,7 @@ namespace {
     void ChoosePhysicalDevice()
     {
         auto allDevices = GetAvailablePhysicalDevices();
+        auto allDeviceInfos = Memory::ScratchNewArrayUninitialized<PhysicalDeviceInfo>(allDevices.size());
         bool suitableDeviceFound = false;
         PhysicalDeviceInfo bestDeviceInfo{};
 
@@ -587,19 +675,30 @@ namespace {
                     suitableDeviceFound = true;
                 }
             }
+
+            allDeviceInfos[i] = info;
         }
 
         if (!suitableDeviceFound) {
-            FATAL("No suitable Vulkan physical device found");
+            eastl::string message = "No suitable Vulkan physical device found. Available devices:\n";
+            for (size_t i = 0; i < allDeviceInfos.size(); i++) {
+                auto subMessage = Formatting::FormatScratchStringChecked<"{}: {} -- Reason: {}\n">(
+                    i, allDeviceInfos[i].properties.deviceName, allDeviceInfos[i].reasonNotSuitable);
+                message.append(subMessage.data(), subMessage.size());
+            }
+            FATAL("{}", message);
         }
 
         LOG_INFO("Using Vulkan physical device: {}", bestDeviceInfo.properties.deviceName);
         LOG_DEBUG("Unified graphics and presentation: {}",
                   bestDeviceInfo.graphicsQueueFamilyIndex == bestDeviceInfo.presentationQueueFamilyIndex);
+        LOG_DEBUG("Chosen surface format: {}",
+                  static_cast<std::underlying_type_t<VkFormat>>(bestDeviceInfo.surfaceImageFormat));
 
         g_vkState.physicalDevice = bestDeviceInfo.handle;
         g_vkState.graphicsQueueFamilyIndex = static_cast<u32>(bestDeviceInfo.graphicsQueueFamilyIndex);
         g_vkState.presentationQueueFamilyIndex = static_cast<u32>(bestDeviceInfo.presentationQueueFamilyIndex);
+        g_vkState.surfaceImageFormat = bestDeviceInfo.surfaceImageFormat;
     }
 
 } // namespace
@@ -616,10 +715,7 @@ namespace {
     {
         static const float kQueuePriority = 1.0f;
 
-        if (g_vkState.device) {
-            return;
-        }
-
+        ASSERT(g_vkState.device == VK_NULL_HANDLE);
         LOG_DEBUG("Creating logical device");
 
         VkDeviceQueueCreateInfo queueCreateInfo[2]{};
@@ -642,17 +738,170 @@ namespace {
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         createInfo.queueCreateInfoCount = queueFamilyCount;
         createInfo.pQueueCreateInfos = queueCreateInfo;
+        createInfo.enabledExtensionCount = std::size(kRequiredDeviceExtensions);
+        createInfo.ppEnabledExtensionNames = kRequiredDeviceExtensions;
 
-        EXPECT_VK(vkCreateDevice(g_vkState.physicalDevice, &createInfo, GPU::Vulkan::kDefaultAllocationCallbacks,
+        LOG_DEBUG("Requested device extensions: {}",
+                  FormatWrapper{std::span<const char* const>{kRequiredDeviceExtensions}});
+
+        EXPECT_VK(vkCreateDevice(g_vkState.physicalDevice, &createInfo, Gpu::Vulkan::kDefaultAllocationCallbacks,
                                  &g_vkState.device));
+        volkLoadDevice(g_vkState.device);
+
+        vkGetDeviceQueue(g_vkState.device, g_vkState.graphicsQueueFamilyIndex, 0, &g_vkState.graphicsQueue);
+
+        if (g_vkState.graphicsQueueFamilyIndex == g_vkState.presentationQueueFamilyIndex) {
+            g_vkState.presentationQueue = g_vkState.graphicsQueue;
+        } else {
+            vkGetDeviceQueue(g_vkState.device, g_vkState.presentationQueueFamilyIndex, 0, &g_vkState.presentationQueue);
+        }
     }
 
     void DestroyDevice()
     {
         if (g_vkState.device) {
             LOG_DEBUG("Destroying logical device");
-            vkDestroyDevice(g_vkState.device, GPU::Vulkan::kDefaultAllocationCallbacks);
+            vkDestroyDevice(g_vkState.device, Gpu::Vulkan::kDefaultAllocationCallbacks);
             g_vkState.device = VK_NULL_HANDLE;
+            g_vkState.graphicsQueue = VK_NULL_HANDLE;
+            g_vkState.presentationQueue = VK_NULL_HANDLE;
+        }
+    }
+
+} // namespace
+
+//==============================================================================
+//
+// Swapchain Initialization
+//
+//==============================================================================
+
+namespace {
+
+    std::span<VkPresentModeKHR> GetSupportedPresentModes()
+    {
+        u32 count = 0;
+        EXPECT_VK(
+            vkGetPhysicalDeviceSurfacePresentModesKHR(g_vkState.physicalDevice, g_vkState.surface, &count, nullptr));
+        if (!count) {
+            return {};
+        }
+        auto modes = Memory::ScratchNewArrayUninitialized<VkPresentModeKHR>(count);
+        EXPECT_VK(vkGetPhysicalDeviceSurfacePresentModesKHR(g_vkState.physicalDevice, g_vkState.surface, &count,
+                                                            modes.data()));
+        return {modes.data(), count};
+    }
+
+    bool CheckPresentMode(std::span<const VkPresentModeKHR> supportedModes, VkPresentModeKHR mode)
+    {
+        for (const auto& supportedMode : supportedModes) {
+            if (supportedMode == mode) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    VkPresentModeKHR ToVulkanPresentMode(Gpu::PresentMode mode)
+    {
+        switch (mode) {
+            case Gpu::PresentMode::kImmediate:
+                return VK_PRESENT_MODE_IMMEDIATE_KHR;
+            case Gpu::PresentMode::kVSync:
+                return VK_PRESENT_MODE_FIFO_KHR;
+            case Gpu::PresentMode::kAdaptive:
+                return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+            case Gpu::PresentMode::kMailbox:
+                return VK_PRESENT_MODE_MAILBOX_KHR;
+            default:
+                // Fall back to the only mode mandated by the Vulkan specification.
+                return VK_PRESENT_MODE_FIFO_KHR;
+        }
+    }
+
+    void CreateSwapchain()
+    {
+        VkSwapchainKHR oldSwapchain = g_vkState.swapchain;
+
+        if (oldSwapchain == VK_NULL_HANDLE) {
+            LOG_DEBUG("Creating swapchain");
+        } else {
+            LOG_DEBUG("Recreating swapchain");
+        }
+
+        VkSwapchainCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = g_vkState.surface;
+        createInfo.minImageCount = 2;
+        createInfo.imageFormat = g_vkState.surfaceImageFormat;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = oldSwapchain;
+
+        // Get surface capabilities.
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        EXPECT_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_vkState.physicalDevice, g_vkState.surface,
+                                                            &surfaceCapabilities));
+
+        if (surfaceCapabilities.maxImageExtent.width == 0) {
+            // Surface has no valid extent, cannot create swapchain.
+            return;
+        } else if (surfaceCapabilities.currentExtent.width == u32(-1)) {
+            Vec2u windowSize = Display::GetSurfaceSizePixels();
+            createInfo.imageExtent.width = Math::Clamp(windowSize.x, surfaceCapabilities.minImageExtent.width,
+                                                       surfaceCapabilities.maxImageExtent.width);
+            createInfo.imageExtent.height = Math::Clamp(windowSize.y, surfaceCapabilities.minImageExtent.height,
+                                                        surfaceCapabilities.maxImageExtent.height);
+        } else {
+            createInfo.imageExtent = surfaceCapabilities.currentExtent;
+        }
+
+        createInfo.preTransform = surfaceCapabilities.currentTransform;
+
+        // Choose a present mode.
+        auto supportedPresentModes = GetSupportedPresentModes();
+        createInfo.presentMode = ToVulkanPresentMode(Gpu::g_gpuSettings.presentMode);
+
+        if (!CheckPresentMode(supportedPresentModes, createInfo.presentMode)) {
+            if (CheckPresentMode(supportedPresentModes, VK_PRESENT_MODE_FIFO_KHR)) {
+                LOG_WARN("Requested present mode not supported, falling back to VK_PRESENT_MODE_FIFO_KHR");
+                createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+            } else {
+                FATAL("Requested present mode not supported and VK_PRESENT_MODE_FIFO_KHR is also not available");
+            }
+        }
+
+        if (createInfo.presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            createInfo.minImageCount = 3;
+        }
+        if (createInfo.minImageCount < surfaceCapabilities.minImageCount) {
+            createInfo.minImageCount = surfaceCapabilities.minImageCount;
+        }
+
+        // Enable sharing if we're using separate queue families for graphics and presentation.
+        u32 queueFamilyIndices[] = {g_vkState.graphicsQueueFamilyIndex, g_vkState.presentationQueueFamilyIndex};
+        if (g_vkState.graphicsQueueFamilyIndex != g_vkState.presentationQueueFamilyIndex) {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+
+        // Create the swapchain.
+        EXPECT_VK(vkCreateSwapchainKHR(g_vkState.device, &createInfo, Gpu::Vulkan::kDefaultAllocationCallbacks,
+                                       &g_vkState.swapchain));
+        if (oldSwapchain != VK_NULL_HANDLE) {
+            vkDestroySwapchainKHR(g_vkState.device, oldSwapchain, Gpu::Vulkan::kDefaultAllocationCallbacks);
+        }
+    }
+
+    void DestroySwapchain()
+    {
+        if (g_vkState.swapchain != VK_NULL_HANDLE) {
+            LOG_DEBUG("Destroying swapchain");
+            vkDestroySwapchainKHR(g_vkState.device, g_vkState.swapchain, Gpu::Vulkan::kDefaultAllocationCallbacks);
+            g_vkState.swapchain = VK_NULL_HANDLE;
         }
     }
 
@@ -664,23 +913,27 @@ namespace {
 //
 //==============================================================================
 
-void GPU::InitGPU()
+void Gpu::InitGpu()
 {
     LOG_INFO("Initializing Vulkan renderer");
     EXPECT_VK(volkInitialize());
     CheckDebugEnvironment();
     CreateInstance();
-    volkLoadInstanceOnly(g_vkState.instance);
     CreateDebugUtilsMessenger();
     CreateSurface();
     ChoosePhysicalDevice();
     CreateDevice();
-    volkLoadDevice(g_vkState.device);
+    CreateSwapchain();
+
+    // Vulkan initialization tends to use a lot of scratch memory.
+    // Free it for the next subsystem to use.
+    Memory::ScratchReset();
 }
 
-void GPU::ShutDownGPU()
+void Gpu::ShutDownGpu()
 {
     LOG_INFO("Shutting down Vulkan renderer");
+    DestroySwapchain();
     DestroyDevice();
     g_vkState.physicalDevice = VK_NULL_HANDLE;
     DestroySurface();

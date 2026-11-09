@@ -27,7 +27,7 @@
 
 /// \def FATAL
 /// Logs a fatal error message and terminates the program with an error code.
-#if DISABLE_SOURCE_LOCATION
+#ifdef MINSIZEREL
 # define FATAL(...) ::Logging::LogFatal(nullptr, __VA_ARGS__)
 #else
 # define FATAL(...) \
@@ -39,7 +39,7 @@
 
 /// \def LOG_ERROR
 /// Logs an error message.
-#if DISABLE_SOURCE_LOCATION
+#ifdef MINSIZEREL
 # define LOG_ERROR(...) ::Logging::Log(::Logging::Level::kError, nullptr, __VA_ARGS__)
 #else
 # define LOG_ERROR(...) \
@@ -51,7 +51,7 @@
 
 /// \def LOG_WARN
 /// Logs a warning message.
-#if DISABLE_SOURCE_LOCATION
+#ifdef MINSIZEREL
 # define LOG_WARN(...) ::Logging::Log(::Logging::Level::kWarn, nullptr, __VA_ARGS__)
 #else
 # define LOG_WARN(...) \
@@ -63,7 +63,7 @@
 
 /// \def LOG_INFO
 /// Logs a neutral status message.
-#if DISABLE_SOURCE_LOCATION
+#ifdef MINSIZEREL
 # define LOG_INFO(...) ::Logging::Log(::Logging::Level::kInfo, nullptr, __VA_ARGS__)
 #else
 # define LOG_INFO(...) \
@@ -74,8 +74,8 @@
 #endif
 
 /// \def LOG_DEBUG
-/// Logs a debug message on debug builds only (`NDEBUG` not defined).
-#ifdef NDEBUG
+/// Logs a message that may be useful for debugging purposes.
+#ifdef MINSIZEREL
 # define LOG_DEBUG(...) ((void)sizeof(::Logging::LogDiscard(__VA_ARGS__)))
 #else
 # define LOG_DEBUG(...) \
@@ -87,7 +87,7 @@
 
 /// \def LOG_TRACE
 /// Logs a trace message on debug builds only (`NDEBUG` not defined).
-#ifdef NDEBUG
+#if defined(NDEBUG) || defined(MINSIZEREL)
 # define LOG_TRACE(...) ((void)sizeof(::Logging::LogDiscard(__VA_ARGS__)))
 #else
 # define LOG_TRACE(...) \

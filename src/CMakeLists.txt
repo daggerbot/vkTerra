@@ -39,6 +39,7 @@ add_library(vkTerraClient INTERFACE)
 target_sources(vkTerraClient INTERFACE
     Client/Main.cpp
     Display/SDL.cpp
+    Gpu/GpuSettings.cpp
 )
 target_compile_definitions(vkTerraClient INTERFACE CLIENT=1)
 target_link_libraries(vkTerraClient INTERFACE
@@ -53,9 +54,9 @@ target_link_libraries(vkTerraClient INTERFACE
 #===============================================================================
 
 add_executable(vkTerra WIN32
-    GPU/Vulkan/Init.cpp
-    GPU/Vulkan/State.cpp
-    GPU/Vulkan/Utils.cpp
+    Gpu/Vulkan/Init.cpp
+    Gpu/Vulkan/State.cpp
+    Gpu/Vulkan/Utils.cpp
 )
 target_compile_definitions(vkTerra PRIVATE GPU_VULKAN=1)
 target_link_libraries(vkTerra PRIVATE

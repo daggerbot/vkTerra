@@ -56,7 +56,7 @@ void Formatting::Formatter<VkResult>::Format(VkResult result, Writer& writer) co
     }
 }
 
-void GPU::Vulkan::ExpectFailure(const Logging::SourceLocation* location, const char* expr, VkResult result)
+void Gpu::Vulkan::ExpectFailure(const Logging::SourceLocation* location, const char* expr, VkResult result)
 {
     Logging::LogFatal(location, "Vulkan call failed: {} => {}", expr, result);
 }

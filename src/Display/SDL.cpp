@@ -7,6 +7,7 @@
 
 #include <Client/Main.h>
 #include <Core/Logging.h>
+#include <Core/Math.h>
 #include <GameDefs.h>
 
 #include "Display.h"
@@ -72,6 +73,15 @@ void Display::PollEvents()
                 break;
         }
     }
+}
+
+Vec2u Display::GetSurfaceSizePixels()
+{
+    int w, h;
+    if (!SDL_GetWindowSizeInPixels(s_displayState.window, &w, &h)) {
+        FATAL("Failed to get window size: {}", SDL_GetError());
+    }
+    return {static_cast<u32>(Math::Max(w, 0)), static_cast<u32>(Math::Max(h, 0))};
 }
 
 //==============================================================================
